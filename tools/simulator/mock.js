@@ -20,7 +20,7 @@
   const mac = i => 'SI:MU:LA:TE:00:' + String(i + 1).padStart(2, '0');
   const bootId = Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, '0');
 
-  const units = Array.from({ length: UNITS }, (_, i) => ({ online: true, i }));
+  const units = Array.from({ length: UNITS }, (_, i) => ({ online: true, i, presses: 0, flashUntil: 0 }));
   const g = { phase: 'idle', mode: 'solo', comp: '', presses: 10, timeoutMs: 5000, bestMs: 0, lanes: [],
               stray: 0, raceStart: 0, phaseUntil: 0, gameId: 0, lastResult: '', results: [], identify: -1 };
   const sockets = new Set();
@@ -30,10 +30,11 @@
     const s = { type: 'state', phase: g.phase, mode: g.mode, comp: g.comp, presses: g.presses, timeoutMs: g.timeoutMs,
                 penaltyMs: PENALTY_MS, stray: g.stray, raceMs: g.phase === 'running' ? now() - g.raceStart : 0,
                 lastResult: g.lastResult };
-    if (g.phase !== 'idle')
+    if (g.phase !== 'idle' && g.phase !== 'test')
       s.lanes = g.lanes.map(l => ({ player: l.player, seq: l.seq, target: l.target + 1, done: l.done,
         finishMs: l.finishMs, falsePresses: l.falsePresses, times: l.times.slice(), missed: l.missed.slice() }));
-    s.units = units.map((u, i) => ({ n: i + 1, mac: mac(i), online: u.online, gateway: i === 0 }));
+    s.units = units.map((u, i) => Object.assign({ n: i + 1, mac: mac(i), online: u.online, gateway: i === 0 },
+      g.phase === 'test' ? { presses: u.presses } : {}));
     return s;
   }
   const push = o => sockets.forEach(ws => ws._recv(o));
@@ -85,6 +86,11 @@
     if (g.lanes.every(l => l.done)) finishGame(); else changed();
   }
   function press(u) {
+    if (units[u].online && g.phase === 'test') {
+      units[u].presses++;
+      units[u].flashUntil = now() + 300;
+      return changed();
+    }
     if (!units[u].online || g.phase !== 'running') return;
     const li = g.lanes.findIndex(l => l.target === u);
     if (li >= 0) {
@@ -97,7 +103,16 @@
   }
   function command(c, ws) {
     const err = msg => ws._recv({ type: 'error', msg });
+    if (c.cmd === 'test') {
+      if (!c.on) { if (g.phase === 'test') setPhase('idle', 0); return; }
+      if (g.phase === 'test') return;
+      if (!['idle', 'result', 'identify'].includes(g.phase)) return err('Erst das laufende Spiel beenden');
+      units.forEach(u => u.presses = 0);
+      g.identify = -1;
+      return setPhase('test', 0);
+    }
     if (c.cmd === 'start') {
+      if (g.phase === 'test') return err('Erst den Testmodus beenden');
       if (!['idle', 'result'].includes(g.phase)) return err('Es läuft schon ein Spiel');
       const duel = c.mode === 'duel';
       if (duel && units.filter(u => u.online).length < 2) return err('Für ein Duell müssen mindestens 2 Buttons online sein');
@@ -139,6 +154,7 @@
       g.identify = -1;
       setPhase('idle', 0);
     }
+    if (g.phase === 'test') drawPanel(); // colour cycle of the virtual buttons
     if (t - lastPush >= 1000) { lastPush = t; changed(); }
   }, 20);
 
@@ -165,7 +181,7 @@
     padding:8px;font:13px system-ui;color:#ddd;max-width:calc(100vw - 16px)}#sim b{display:block;margin-bottom:6px}
     #sim .row{display:flex;flex-wrap:wrap;gap:6px}#sim button.u{width:52px;height:52px;border-radius:50%;border:2px solid #666;
     background:#223;color:#fff;font-weight:bold;cursor:pointer}#sim button.u.red{background:#e33;box-shadow:0 0 12px #f55}
-    #sim button.u.blue{background:#36f;box-shadow:0 0 12px #58f}#sim button.u.id{background:#09c}#sim button.u.off{opacity:.3}
+    #sim button.u.blue{background:#36f;box-shadow:0 0 12px #58f}#sim button.u.white{background:#fff;color:#000}#sim button.u.u-green{background:#2c2;box-shadow:0 0 12px #5f5}#sim button.u.id{background:#09c}#sim button.u.off{opacity:.3}
     #sim label{display:flex;align-items:center;gap:6px;margin:6px 0 0;color:#ddd;font-size:13px}
     #sim input{width:auto;margin:0}`;
   document.head.insertAdjacentHTML('beforeend', `<style>${css}</style>`);
@@ -177,14 +193,20 @@
     document.getElementById('simOff').onchange = e => { units[UNITS - 1].online = !e.target.checked; changed(); };
     drawPanel();
   });
+  // same 400 ms steps as leds::TEST, roughly: red, green, blue, white with dark steps in between
+  const testCls = () => [ 'red', '', 'u-green', '', 'blue', '', 'white', '' ][Math.floor(now() / 400) % 8];
   function drawPanel() {
     const box = document.getElementById('simUnits');
     if (!box) return;
-    box.innerHTML = units.map((u, i) => {
+    const html = units.map((u, i) => {
       const li = g.phase === 'running' ? g.lanes.findIndex(l => l.target === i) : -1;
-      const cls = li === 0 ? 'red' : li === 1 ? 'blue' : g.identify === i ? 'id' : '';
+      const cls = g.phase === 'test' ? (u.flashUntil > now() ? 'white' : testCls())
+        : li === 0 ? 'red' : li === 1 ? 'blue' : g.identify === i ? 'id' : '';
       return `<button class="u ${cls} ${u.online ? '' : 'off'}" data-u="${i}" title="Button ${i + 1}">${i + 1}</button>`;
     }).join('');
+    if (box.dataset.html === html) return;
+    box.dataset.html = html;
+    box.innerHTML = html;
     box.querySelectorAll('button').forEach(b => b.onpointerdown = () => press(+b.dataset.u));
   }
 })();

@@ -18,6 +18,7 @@ namespace leds
     RESULT_A,     // red pulse: red player won the duel
     RESULT_B,     // blue pulse: blue player won the duel
     IDENTIFY,     // fast blue blink
+    TEST,         // hardware test: red, green, blue, white, then one LED after the other
   };
 
   void begin();

@@ -15,6 +15,7 @@ namespace gateway
       uint8_t mac[6];
       uint32_t lastSeen;
       uint8_t lastFalseSeq;
+      uint16_t testPresses; // presses since the test mode was switched on
     };
 
     // One player's progress. Solo uses lane 0 only.
@@ -86,6 +87,8 @@ namespace gateway
         return "result";
       case PH_IDENTIFY:
         return "identify";
+      case PH_TEST:
+        return "test";
       default:
         return "idle";
       }
@@ -340,6 +343,17 @@ namespace gateway
     if (wasOffline)
       pushState();
 
+    if (phase == PH_TEST && m.type == MSG_TEST_PRESS)
+    {
+      if (m.seq[0] != units[u].lastFalseSeq)
+      {
+        units[u].lastFalseSeq = m.seq[0];
+        units[u].testPresses++;
+        Serial.printf("Test press on unit %d (%u)\n", u + 1, units[u].testPresses);
+        pushState();
+      }
+      return;
+    }
     if (phase != PH_RUNNING || m.gameId != gameId)
       return;
     switch (m.type)
@@ -422,6 +436,11 @@ namespace gateway
 
   bool startGame(const StartRequest &req, String &error)
   {
+    if (phase == PH_TEST)
+    {
+      error = "Erst den Testmodus beenden";
+      return false;
+    }
     if (!idle())
     {
       error = "Es läuft schon ein Spiel";
@@ -469,6 +488,29 @@ namespace gateway
     setPhase(PH_IDLE, 0);
   }
 
+  bool setTest(bool on)
+  {
+    if (!on)
+    {
+      if (phase == PH_TEST)
+      {
+        Serial.println("Test mode off");
+        setPhase(PH_IDLE, 0);
+      }
+      return true;
+    }
+    if (phase == PH_TEST)
+      return true;
+    if (!idle())
+      return false;
+    for (int i = 0; i < MAX_UNITS; i++)
+      units[i].testPresses = 0;
+    identifyTarget = -1;
+    Serial.println("Test mode on");
+    setPhase(PH_TEST, 0);
+    return true;
+  }
+
   bool identify(int unitNumber)
   {
     int i = unitNumber - 1;
@@ -493,7 +535,7 @@ namespace gateway
     doc["stray"] = strayPresses;
     doc["raceMs"] = phase == PH_RUNNING ? now - raceStart : 0;
     doc["lastResult"] = lastResultId;
-    if (phase != PH_IDLE)
+    if (phase != PH_IDLE && phase != PH_TEST)
     {
       JsonArray ls = doc["lanes"].to<JsonArray>();
       for (uint8_t l = 0; l < laneCount; l++)
@@ -525,6 +567,8 @@ namespace gateway
       o["mac"] = macToString(units[i].mac);
       o["online"] = online(i, now);
       o["gateway"] = i == 0;
+      if (phase == PH_TEST)
+        o["presses"] = units[i].testPresses;
     }
     String out;
     serializeJson(doc, out);

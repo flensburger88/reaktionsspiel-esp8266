@@ -29,6 +29,7 @@ namespace gateway
   bool startGame(const StartRequest &req, String &error);
   void abortGame();
   bool identify(int unitNumber);
+  bool setTest(bool on); // hardware test on all units; false while a game runs
 
   String stateJson();
   String resultsJson(); // finished games still kept here, newest last

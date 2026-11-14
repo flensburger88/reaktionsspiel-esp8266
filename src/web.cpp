@@ -82,6 +82,12 @@ namespace web
       }
       else if (!strcmp(cmd, "abort"))
         gateway::abortGame();
+      else if (!strcmp(cmd, "test"))
+      {
+        // {"cmd":"test","on":true|false}
+        if (!gateway::setTest(doc["on"] | false))
+          sendError(client, "Erst das laufende Spiel beenden");
+      }
       else if (!strcmp(cmd, "identify"))
       {
         if (!gateway::identify(doc["unit"] | 0))

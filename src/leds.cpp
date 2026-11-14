@@ -94,6 +94,22 @@ namespace leds
       case IDENTIFY:
         fill(blinkOn(now, 300, 150) ? CRGB::Blue : CRGB::Black);
         break;
+      case TEST:
+      {
+        // 400 ms steps: 4 colours with a dark step in between, then a running dot,
+        // so a dead LED (and everything after it in the chain) is easy to spot
+        static const CRGB colors[] = {CRGB::Red, CRGB::Green, CRGB::Blue, CRGB::White};
+        uint32_t step = (now - patternSince) / 400 % (8 + NUM_LEDS);
+        fill(CRGB::Black);
+        if (step < 8)
+        {
+          if (step % 2 == 0)
+            fill(colors[step / 2]);
+        }
+        else
+          pixels[step - 8] = CRGB(255, 160, 0);
+        break;
+      }
       }
       show();
     }

@@ -77,6 +77,9 @@ namespace unit
       case PH_IDENTIFY:
         leds::setPattern(sameMac(state.target[0], radio::selfMac()) ? leds::IDENTIFY : idlePattern());
         break;
+      case PH_TEST:
+        leds::setPattern(leds::TEST);
+        break;
       }
     }
 
@@ -105,6 +108,17 @@ namespace unit
         leds::setPattern(leds::OFF);
         Msg copy = pressedMsg;
         sendFn(copy); // may call onState() synchronously on the gateway
+      }
+      else if (haveState && state.phase == PH_TEST)
+      {
+        // the app counts test presses per unit, so the player sees every button arrive
+        falseMsg = Msg{};
+        falseMsg.type = MSG_TEST_PRESS;
+        falseMsg.seq[0] = ++falsePressCounter;
+        falseRepeats = 3;
+        lastFalseSend = 0;
+        Serial.println("Test press");
+        leds::flash(CRGB::White, 300);
       }
       else if (gameRunning())
       {

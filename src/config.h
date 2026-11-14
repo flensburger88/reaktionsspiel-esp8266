@@ -3,7 +3,7 @@
 
 // Hardware (same wiring as ButtonSpielV2)
 #define LED_PIN D1
-#define NUM_LEDS 8
+#define NUM_LEDS 4 // finished buttons: 4 x WS2812B (breadboard prototype: 8)
 #define BUTTON_PIN D3 // GPIO0, active LOW
 #define LED_BRIGHTNESS 120
 

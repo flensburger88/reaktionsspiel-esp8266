@@ -123,7 +123,8 @@ details summary{cursor:pointer;color:var(--mut);font-size:14px;margin-top:10px}
 <div class="card">
   <h2>Buttons</h2>
   <div id="units"></div>
-  <div class="mut" style="margin-top:8px">„Zeigen“ lässt einen Button blau blinken.</div>
+  <div class="mut" style="margin-top:8px" id="unitsHint">„Zeigen“ lässt einen Button blau blinken.</div>
+  <button class="sec" id="testBtn">Testmodus starten</button>
 </div>
 
 <script>
@@ -189,8 +190,9 @@ function renderComp(){
   if(nl.dataset.key!==nKey){nl.dataset.key=nKey;nl.innerHTML=names.map(n=>`<option value="${esc(n)}">`).join('')}
 }
 function running(){return state&&['countdown','running'].includes(state.phase)}
+function testing(){return state&&state.phase==='test'}
 function renderPlay(){
-  const c=active();$('play').classList.toggle('hide',!c||running());if(!c)return;
+  const c=active();$('play').classList.toggle('hide',!c||running()||testing());if(!c)return;
   $('playSolo').classList.toggle('hide',c.mode!=='solo');$('playDuel').classList.toggle('hide',c.mode!=='duel');
   if(c.mode==='solo'){const runs=soloRuns(c.id);
     setHtml('soloPlayers',c.players.map((p,i)=>{const n=runs.filter(r=>r.player===p).length;
@@ -245,8 +247,13 @@ function renderRanking(){const c=active();const list=c?compResults(c.id):[];$('r
     `<span class="${r.mode==='duel'?(i?'blue':'red'):''}">${esc(l.player)}${r.winner===i?' 🏆':''}</span>`).join(' : ')}</td><td class="r">${r.lanes.map(l=>sec(l.total)).join(' : ')}</td></tr>`).join('')+'</table>'}
 function renderUnits(){if(!state)return;const on=state.units.filter(u=>u.online).length;
   $('unitCount').textContent=on+' Button'+(on===1?'':'s');
+  const t=testing();
   setHtml('units',state.units.map(u=>`<div class="unit"><span><span class="dot ${u.online?'on':''}"></span> Button ${u.n}${u.gateway?' (Zentrale)':''} <span class="mut">${u.mac.slice(-5)}</span></span>
-    <button class="small sec" onclick="send({cmd:'identify',unit:${u.n}})" ${u.online&&!running()?'':'disabled'}>Zeigen</button></div>`).join(''))}
+    ${t?`<span class="${u.presses?'':'mut'}">${u.presses?'✓ '+u.presses+'× gedrückt':'noch nicht gedrückt'}</span>`
+      :`<button class="small sec" onclick="send({cmd:'identify',unit:${u.n}})" ${u.online&&!running()?'':'disabled'}>Zeigen</button>`}</div>`).join(''));
+  const b=$('testBtn');b.textContent=t?'Testmodus beenden':'Testmodus starten';b.className=t?'bad':'sec';b.disabled=running();
+  $('unitsHint').textContent=t?'Alle Buttons blinken rot, grün, blau, weiß, dann läuft ein Licht durch den Ring. Jeder Druck blitzt weiß und wird hier gezählt.'
+    :'„Zeigen“ lässt einen Button blau blinken. Der Testmodus prüft LEDs und Taster aller Buttons.'}
 // replace an element's content only if it really changed, so taps and open pickers survive the status updates
 function setHtml(id,html){const e=$(id);if(e.dataset.html!==html){e.dataset.html=html;e.innerHTML=html}}
 
@@ -257,6 +264,7 @@ $('duelStart').onclick=()=>{const c=active(),a=$('duelA').value,b=$('duelB').val
   if(!a||!b||a===b){showErr('Bitte zwei verschiedene Spieler wählen');return}
   send({cmd:'start',mode:'duel',players:[a,b],presses:c.presses,timeoutMs:c.timeoutMs,comp:c.id})};
 $('abort').onclick=()=>send({cmd:'abort'});
+$('testBtn').onclick=()=>send({cmd:'test',on:!testing()});
 $('compSel').onchange=e=>{activeId=e.target.value;save('bs.active',activeId);render()};
 let ncMode='solo';
 $('ncMode').onclick=e=>{const m=e.target.dataset.m;if(!m)return;ncMode=m;[...$('ncMode').children].forEach(b=>b.classList.toggle('on',b.dataset.m===m))};

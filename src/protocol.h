@@ -5,7 +5,7 @@
 // game state every STATE_INTERVAL_MS, so a lost packet only delays things.
 
 constexpr uint8_t MSG_MAGIC = 0xB5;
-constexpr uint8_t MSG_VERSION = 2; // v2: two lanes (duel)
+constexpr uint8_t MSG_VERSION = 3; // v2: two lanes (duel), v3: test mode
 constexpr uint8_t LANES = 2;       // lane 0 = red player, lane 1 = blue player (duel only)
 
 enum MsgType : uint8_t
@@ -14,6 +14,7 @@ enum MsgType : uint8_t
   MSG_HELLO = 2,       // unit -> gateway: "I am here"
   MSG_PRESSED = 3,     // unit -> gateway: lane/seq[0] pressed after value ms, resent until the state moves on
   MSG_FALSE_PRESS = 4, // unit -> gateway: pressed while not lit, seq[0] = per-unit counter
+  MSG_TEST_PRESS = 5,  // unit -> gateway: pressed in test mode, seq[0] = per-unit counter
 };
 
 enum Phase : uint8_t
@@ -23,6 +24,7 @@ enum Phase : uint8_t
   PH_RUNNING = 2,   // target[lane] is lit (all zero = none), seq[lane] = presses done
   PH_RESULT = 3,    // value = ResultShow
   PH_IDENTIFY = 4,  // target[0] blinks so the player sees which unit it is
+  PH_TEST = 5,      // hardware test on all units until switched off
 };
 
 enum ResultShow : uint8_t
