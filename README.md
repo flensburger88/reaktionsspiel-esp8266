@@ -20,6 +20,10 @@ Web-App auf dem Handy. Zwei Spielmodi:
    oben wird der aktive gewählt. Spieler lassen sich später ergänzen.
 4. Einzel: Spieler antippen → sein Lauf startet. Duell: Rot und Blau wählen → „Duell starten“.
 5. Rangliste je Wettkampf: Einzel nach Bestzeit, Duell nach Siegen (dann Niederlagen, dann Bestzeit).
+6. **Testmodus** (Karte „Buttons“ ganz unten): Alle Buttons zeigen nacheinander rot, grün, blau und weiß,
+   danach läuft ein einzelnes Licht durch den Ring. So fällt eine tote LED sofort auf, denn alle LEDs dahinter
+   bleiben dunkel. Jeder Tastendruck blitzt weiß und wird in der App pro Button gezählt. „Testmodus beenden“
+   schaltet zurück, danach kann wieder gespielt werden.
 
 ## Daten und Export
 - Wettkämpfe und Ergebnisse liegen im **Browser-Speicher (localStorage) des Handys** – nicht auf den ESPs.
@@ -55,6 +59,7 @@ Web-App auf dem Handy. Zwei Spielmodi:
 | Regenbogen / lila | Einzel-Ergebnis: neue Bestzeit im Wettkampf / sonstiges Ergebnis |
 | rot / blau pulsierend | Duell-Ergebnis: Rot / Blau hat gewonnen (lila = unentschieden) |
 | blau schnell | „Zeigen“ aus der App |
+| rot, grün, blau, weiß, dann Lauflicht | Testmodus; ein Druck blitzt weiß |
 
 ## Hardware
 Jeder Button ist gleich aufgebaut; es werden mindestens zwei gebraucht (einer wird automatisch Zentrale).
@@ -65,12 +70,13 @@ Jeder Button ist gleich aufgebaut; es werden mindestens zwei gebraucht (einer wi
 | Teil | Hinweis |
 |---|---|
 | Wemos D1 mini (ESP8266) | NodeMCU geht auch |
-| 8× WS2812B (Ring oder Einzel-LEDs in Kette) | an **+5 V**, nicht an 3V3 |
-| Taster (Schließer) | zwischen D3 und GND, **kein Widerstand nötig** |
+| 4× WS2812B (Einzel-LEDs in Kette, oder ein Ring) | an **+5 V**, nicht an 3V3; Anzahl in `config.h` (`NUM_LEDS`) |
+| Taster (Schließer), z. B. großer Pilztaster | zwischen D3 und GND, **kein Widerstand nötig** |
 | AMS1117-5.0-Modul + 7–12-V-Quelle | oder Powerbank direkt am USB des Wemos |
 | 330-Ω-Widerstand | empfohlen, in der Datenleitung vor der ersten LED |
 | Elko 470–1000 µF / 10 V | empfohlen, zwischen +5 V und GND an den LEDs |
-| Ein/Aus-Schalter | empfohlen |
+| Ein/Aus-Schalter | empfohlen, z. B. Kippschalter in der Plus-Leitung der Batterie |
+| Lochrasterplatine, Buchsenleisten, Batterieclip, Gehäuse | Wemos und Regler gesteckt, damit sie tauschbar bleiben |
 
 ### Verdrahtung
 | Wemos | geht an |
@@ -86,6 +92,43 @@ Hinweise:
   Für den Dauerbetrieb besser Li-Ion-Akku + Lademodul (z. B. TP4056 mit Schutz) + 5-V-Aufwärtswandler oder eine Powerbank.
 - Pins ändern: `src/config.h` (`LED_PIN`, `BUTTON_PIN`, `NUM_LEDS`, `LED_BRIGHTNESS`).
 - Schaltplan neu erzeugen: `python docs/schematic.py` (braucht `pip install schemdraw`).
+
+### Aufbau
+So sind die vier Buttons entstanden:
+
+| | |
+|---|---|
+| <img src="docs/img/aufbau-1-traeger.jpg" alt="Wemos auf Buchsenleisten" width="360"> | <img src="docs/img/aufbau-2-platinen.jpg" alt="Reglermodul, Wemos und Lochrasterplatinen" width="360"> |
+| **1.** Der Wemos steckt auf Buchsenleisten und lässt sich zum Flashen oder Tauschen abziehen. | **2.** Das AMS1117-Modul sitzt auf einer kleinen Lochrasterplatine; +5 V und GND laufen als Brücken über die Platine. |
+| <img src="docs/img/aufbau-3-leds.jpg" alt="WS2812B-LEDs mit angelöteten Drähten" width="360"> | <img src="docs/img/aufbau-4-verdrahtung.jpg" alt="Verdrahtung mit Batterieclip und Schalter" width="360"> |
+| **3.** Die WS2812B-Einzel-LEDs vorher mit Drähten versehen. Auf die Pfeilrichtung achten: Die Daten gehen von DOUT zu DIN der nächsten LED. | **4.** Batterieclip und Kippschalter an den Regler, die Leitungen für Taster und LEDs an die Platine. |
+| <img src="docs/img/aufbau-5-test.jpg" alt="Kompletter Aufbau vor dem Einbau" width="360"> | <img src="docs/img/aufbau-6-fertig.jpg" alt="Fertige Buttons im Gehäuse" width="360"> |
+| **5.** Vor dem Einbau alles zusammen testen (siehe unten). | **6.** Fertig: Pilztaster im Deckel, Batterie und Elektronik im Gehäuse. |
+
+**Nach dem Löten testen.** Wemos per USB anschließen und den Hardwaretest aufspielen:
+
+```
+pio run -e hwtest -t upload
+```
+
+- **LEDs:** Alle LEDs leuchten nacheinander rot, grün, blau und weiß. Danach läuft ein einzelnes Licht durch die Kette.
+  Bleibt das Licht an einer LED stehen, ist die Lötstelle davor schuld.
+- **Taster:** Solange er gedrückt ist, blitzen alle LEDs weiß. Im seriellen Monitor (115200 Baud) erscheint
+  `Taster GEDRUECKT`, und `D3 = LOW` zeigt den Pegel direkt.
+- **Wenn nichts geht:** `pio run -e pinscan -t upload`. Dann bekommt jeder Pin von D1 bis D7 eine eigene Farbe
+  (D1 rot, D2 grün, D3 blau, D4 weiß, D5 gelb, D6 türkis, D7 lila), und Tastendrücke werden pro Pin gezählt.
+  So sieht man sofort, ob etwas am falschen Pin hängt.
+
+Typische Fehler beim Bau dieser Buttons:
+- **Das D3-Pad hat keinen Kontakt zum Stift der Buchsenleiste.** Die Lötstelle sah gut aus, aber D3 blieb immer `HIGH`.
+  Das Lot muss Pad und Stift verbinden, sodass ein glänzender Kegel entsteht und keine Kugel auf dem Pad.
+- **Fehler in der LED-Verdrahtung.** Die LEDs flackerten, und der Taster reagierte nicht. Ohne LEDs funktionierte
+  der Taster, nach neuem Anlöten der LEDs lief alles. Also LED-Drähte und Pads auf Brücken prüfen,
+  vor allem zur Taster-Leitung und zwischen DIN, + und GND.
+- **5V und G liegen direkt nebeneinander.** Vor dem ersten Einstecken mit dem Durchgangsprüfer messen, dass sie nicht verbunden sind.
+
+Sind alle Buttons fertig, wieder die Spiel-Firmware aufspielen (`pio run -t upload`) und in der App mit dem
+**Testmodus** alle gemeinsam prüfen.
 
 ### Prototyp auf dem Steckbrett
 <p>
@@ -103,10 +146,12 @@ pio device monitor       # serieller Monitor, 115200 Baud
 
 **Alle** Buttons müssen dieselbe Firmware-Version haben (siehe Funkprotokoll unten).
 
+Zum Prüfen frisch gelöteter Buttons gibt es einen Hardwaretest, siehe [Aufbau](#aufbau).
+
 ## Technik
 - Alle Geräte haben dieselbe Firmware; die Zentrale wird beim Booten gewählt (`main.cpp`).
-- Funk: ESP-NOW-Broadcast auf Kanal 1 (`radio.cpp`, Format in `protocol.h`, Version 2 mit zwei „Lanes“ für
-  das Duell – Geräte mit älterer Firmware werden ignoriert, also immer **alle** Buttons flashen).
+- Funk: ESP-NOW-Broadcast auf Kanal 1 (`radio.cpp`, Format in `protocol.h`, Version 3: zwei „Lanes“ für
+  das Duell und der Testmodus – Geräte mit älterer Firmware werden ignoriert, also immer **alle** Buttons flashen).
   Die Zentrale sendet den Spielzustand alle 100 ms und bei jeder Änderung; ein Button misst seine Reaktionszeit
   selbst (LED an → Druck), Funklatenz zählt also nicht.
 - Zentrale: Spielleitung für Einzel und Duell (`gateway.cpp`), eigenes WLAN + Webseite + WebSocket `/ws` auf
@@ -114,7 +159,7 @@ pio device monitor       # serieller Monitor, 115200 Baud
   Der Webserver ist **asynchron** (ESPAsyncWebServer): ein langsames oder schlafendes Handy darf die Spielschleife
   nie blockieren, sonst kommt der Spielzustand nicht mehr bei den Buttons an (gelbes Blinken). Blockiert die Schleife
   doch einmal länger als 100 ms, steht `Loop stalled … ms` im seriellen Log.
-- Verdrahtung: LEDs an D1 (8× WS2812B), Taster an D3 gegen GND – siehe [Hardware](#hardware).
+- Verdrahtung: LEDs an D1 (4× WS2812B), Taster an D3 gegen GND – siehe [Hardware](#hardware).
 - Ein Gerät mit gespeicherten WLAN-Zugangsdaten (z. B. aus einer älteren Firmware mit WiFiManager) verbindet sich
   nicht mehr mit dem Router, damit der Funkkanal fest bleibt.
 

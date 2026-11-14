@@ -93,7 +93,7 @@ with schemdraw.Drawing(show=False) as d:
     d += elm.Line().at(l2.DOUT).right(0.6)
     d += elm.Gap().right(1.2).label("…", fontsize=18)
     d += elm.Line().right(0.6)
-    l8 = led(8).anchor("DIN")
+    l8 = led(4).anchor("DIN")
     d += l8
     for l in (l1, l2, l8):
         d += elm.Vdd().at(l.VDD).label("+5 V")
@@ -104,7 +104,7 @@ with schemdraw.Drawing(show=False) as d:
         "grau = empfohlen, im Steckbrett-Prototyp noch nicht verbaut.\n"
         "Taster: kein Widerstand nötig (INPUT_PULLUP + 10 kΩ auf dem Wemos an D3). "
         "D3 = GPIO0: beim Einschalten nicht drücken (sonst Flash-Modus).\n"
-        "LEDs mit +5 V versorgen, nicht aus dem 3V3-Pin. Im fertigen Button: 8× WS2812B als Ring.",
+        "LEDs mit +5 V versorgen, nicht aus dem 3V3-Pin. Im fertigen Button: 4× WS2812B in Kette (Prototyp: 8).",
         halign="left", valign="top", fontsize=10, color="#444444",
     )
 
