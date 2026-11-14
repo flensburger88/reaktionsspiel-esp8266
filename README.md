@@ -118,7 +118,32 @@ pio device monitor       # serieller Monitor, 115200 Baud
 - Ein Gerät mit gespeicherten WLAN-Zugangsdaten (z. B. aus einer älteren Firmware mit WiFiManager) verbindet sich
   nicht mehr mit dem Router, damit der Funkkanal fest bleibt.
 
-## Testen ohne Taster/LED-Ring
+## Simulation im Browser (ohne Hardware)
+Die Handy-App lässt sich ohne ESP, Taster und LEDs ausprobieren: `tools/simulator` startet einen kleinen Webserver,
+der die Seite aus `src/webpage.h` ausliefert (immer die aktuelle Version) und statt der Zentrale ein simuliertes
+Gateway im Browser laufen lässt (`mock.js`, bildet `gateway.cpp` nach: Countdown, Ziele, Timeout, Fehldrücke,
+Einzel und Duell, Ergebnisse, CSV-Export).
+
+```
+python tools/simulator/simulate.py              # öffnet http://127.0.0.1:8765/ im Browser
+python tools/simulator/simulate.py --units 6 --bot
+```
+
+| Option | Bedeutung |
+|---|---|
+| `--units N` | Anzahl simulierter Buttons (1–10, Standard 4) |
+| `--bot` | Buttons drücken sich selbst nach 180–650 ms (zum Zuschauen) |
+| `--port P` | anderer Port (Standard 8765) |
+| `--no-browser` | Browser nicht automatisch öffnen |
+
+Rechts unten erscheinen die virtuellen Buttons: der leuchtende (rot = Einzel/Spieler Rot, blau = Spieler Blau)
+muss angeklickt werden; ein Klick auf einen anderen zählt als Fehldruck. Dort lassen sich auch „automatisch drücken“
+und „Button offline“ umschalten. Nur Python 3 nötig, keine weiteren Pakete. Wettkämpfe landen wie auf dem Handy
+im localStorage dieses Browsers (unter `127.0.0.1:<Port>`).
+
+<img src="docs/img/simulator.jpg" alt="Simulator: Duell im Browser mit virtuellen Buttons" width="300">
+
+## Testen mit echten Boards, aber ohne Taster/LED-Ring
 - Ein nacktes Board reicht. Beim NodeMCU ist der **FLASH-Taster** GPIO0 = D3 = Spieltaster.
   Ein Wemos D1 mini hat nur **RST** (startet neu!) – dort D3 kurz mit GND verbinden oder `autoplay.py` nutzen.
   Die **blaue Onboard-LED** (GPIO2) leuchtet, wenn der Ring hell wäre (Ziel, Countdown, Ergebnis …).
