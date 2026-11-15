@@ -7,3 +7,4 @@
 __pycache__/
 *.pyc
 .claude/
+hardware/gehaeuse/_ref_*.step

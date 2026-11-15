@@ -76,7 +76,7 @@ Jeder Button ist gleich aufgebaut; es werden mindestens zwei gebraucht (einer wi
 | 330-Ω-Widerstand | empfohlen, in der Datenleitung vor der ersten LED |
 | Elko 470–1000 µF / 10 V | empfohlen, zwischen +5 V und GND an den LEDs |
 | Ein/Aus-Schalter | empfohlen, z. B. Kippschalter in der Plus-Leitung der Batterie |
-| Lochrasterplatine, Buchsenleisten, Batterieclip, Gehäuse | Wemos und Regler gesteckt, damit sie tauschbar bleiben |
+| Lochrasterplatine, Buchsenleisten, Batterieclip, Gehäuse | Wemos und Regler gesteckt, damit sie tauschbar bleiben; Gehäuse zum Drucken siehe unten |
 
 ### Verdrahtung
 | Wemos | geht an |
@@ -129,6 +129,18 @@ Typische Fehler beim Bau dieser Buttons:
 
 Sind alle Buttons fertig, wieder die Spiel-Firmware aufspielen (`pio run -t upload`) und in der App mit dem
 **Testmodus** alle gemeinsam prüfen.
+
+### Gehäuse zum Drucken (Prototyp)
+> **Prototyp – das finale Design folgt.** Noch nicht gedruckt und nicht getestet.
+
+<img src="docs/img/gehaeuse-v5.png" alt="Gehäuse V5 mit abgenommenem Boden" width="420">
+
+Unter [`hardware/gehaeuse/`](hardware/gehaeuse/) liegen:
+- die Druckdateien `haube.step` / `haube.stl` und `boden.step` / `boden.stl`,
+- das parametrische Skript `gehaeuse.py` (build123d) mit `export.py`.
+
+Alles hängt an der Haube: Not-Aus, LEDs, Kippschalter, Lochraster und 9-V-Block. Die Bodenplatte lässt sich abschrauben.
+Maße, Druckeinstellungen und Zusammenbau stehen in der [README des Gehäuses](hardware/gehaeuse/README.md).
 
 ### Prototyp auf dem Steckbrett
 <p>
