@@ -2,7 +2,8 @@
 
 > **Prototyp – das finale Design folgt.**
 > Der Probedruck von V5 hat gepasst. V6 hält die LEDs mit waagerechten Schiebeklammern statt Heißkleber. V6b gibt den Kabeln
-> unter der Klammer mehr Platz und hält das Lochraster an der Kante senkrecht; noch nicht gedruckt.
+> unter der Klammer mehr Platz und hält das Lochraster an der Kante senkrecht. V6c lässt in dieser Kantenführung einen
+> Durchgang für die LED-Kabel; noch nicht gedruckt.
 
 ![Gehäuse V5, Boden abgenommen](../../docs/img/gehaeuse-v5.png)
 
@@ -103,3 +104,7 @@ Wie das Gehäuse in fünf Schritten entstanden ist:
    größer (`KABEL_LUFT`), der Halter ragt jetzt 4,85 mm in den Raum. Außerdem kippte das Lochraster beim Aufsetzen des Bodens
    um. An seiner +X-Kante (gegenüber dem Kippschalter) hält es jetzt eine senkrechte U-Nut, die von der Decke wächst und am
    Eckdom hängt, also ohne Stütze druckbar ist. Die Lage der Kante steht in `PCB_KANTE_X`, die Nut greift 3 mm (`HAKEN_GRIFF`).
+8. **V6c:** An der Kantenführung laufen auch die LED-Kabel an der Platine vorbei. Auf halber Höhe hat die Führung deshalb
+   ein Fenster durch beide Nutwände (18–26 mm über der Bodenplatte, `DURCHGANG_*`); die Kabel laufen übereinander durch den
+   etwa 2 mm breiten Spalt zwischen Platinenkante und Nut-Ende. Die Unterkante des Fensters steigt unter 45° zum Eckdom an,
+   damit der Rest der Führung kopfüber ohne Überhang weiterwächst. `export.py` prüft, dass drei Adern durchpassen.

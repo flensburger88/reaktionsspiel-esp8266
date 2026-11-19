@@ -65,4 +65,17 @@ for w, seite in enumerate(['+X', '+Y', '-X', '-Y']):
         fehler += 1
         print(f'  LED {seite}: Einschubweg blockiert durch {", ".join(im_weg)}')
 
+if g.DURCHGANG:
+    # 3 Adern Ø KABEL_D übereinander laufen von hinter der Platine über die Platinenkante nach vorn
+    # (hinten rundet der Eckdom die Nut ab x ≈ 32 ab – geprüft wird der Spalt bis 32)
+    x0, x1 = g.PCB_KANTE_X + 0.1, min(g.haken_nut_x1, 32.0) - 0.1
+    bundel = Pos((x0 + x1) / 2, g.PCB_Y, g.z_o - 0.5 - 1.5 * g.KABEL_D) * Box(
+        x1 - x0, g.haken_y1 - g.haken_y0 + 1, 3 * g.KABEL_D)
+    im_weg = [n for n, s in alle.items() if n != 'kabel' and (bundel & s).volume > 0.01]
+    print(f'Kabeldurchgang: Spalt neben Platinenkante {x1 - x0 + 0.2:.1f} mm, Fenster '
+          f'{g.z_u1 - g.BODEN:.1f}–{g.DURCHGANG_OBEN:.1f} mm (am geschlossenen Ende) über Bodenplatte')
+    if im_weg:
+        fehler += 1
+        print(f'  Kabeldurchgang blockiert durch {", ".join(im_weg)}')
+
 print('OK – keine Probleme gefunden' if fehler == 0 else f'{fehler} Problem(e)')

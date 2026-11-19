@@ -2,6 +2,7 @@
 
 PROTOTYP – V5 probegedruckt, V6 = waagerechte LED-Klammern statt Heißkleber,
 V6b = +0,25 mm Kabelspalt an der Klammer + senkrechte Kantenführung fürs Lochraster.
+V6c = Kabeldurchgang auf halber Höhe der Kantenführung (Unterkante 45° angeschrägt für den Druck).
 
 Einteilige HAUBE (Decke mit Not-Aus + 4 Wände) trägt alles: Not-Aus, LEDs, Kippschalter,
 Lochraster-Nut, 9-V-Halter. Darunter eine abnehmbare BODENPLATTE (4× M3 Senkkopf von unten
@@ -57,6 +58,12 @@ PCB_KANTE_X = 30.0          # MESSEN: x der +X-Kante des zugeschnittenen Lochras
 HAKEN_GRIFF = 3.0           # so weit greift die Führung über die Platinenkante
 HAKEN_X1 = 33.5             # Ende am Eckdom (Einschmelzmutter bleibt frei)
 HAKEN_WAND_V, HAKEN_WAND_H = 1.2, 2.0   # Wandstärke vor (Wemos-Seite) / hinter der Platine, wie die Deckenrippe
+# Kabeldurchgang (V6c): Fenster auf halber Höhe durch beide Nutwände, damit die LED-Kabel hinter der Platine über
+# die Platinenkante (Spalt bis zum geschlossenen Ende) nach vorn laufen. Die Unterkante steigt unter 45° zum
+# geschlossenen Ende an – kopfüber gedruckt wächst der Rest der Führung so ohne freien Überhang weiter.
+DURCHGANG = True
+DURCHGANG_OBEN = 26.0       # Oberkante des Fensters über Bodenplatte (waagerecht, unter der Deckenrippe ab 30)
+DURCHGANG_H = 8.0           # lichte Höhe am geschlossenen Ende; zur freien Kante hin wird es größer
 WEMOS = (34.2, 25.6)
 USB_SCHLITZ = False
 USB_B, USB_H = 13.0, 9.0
@@ -217,6 +224,18 @@ haken -= Pos((haken_x0 - 1 + haken_nut_x1) / 2, PCB_Y, (haken_z0 + Z_DECKE) / 2)
 for s in (-1, 1):
     haken -= Pos(haken_x0 + 0.5 * (HAKEN_X1 - haken_x0), PCB_Y + s * NUT_B / 2, haken_z0) * Rot(45, 0, 0) * Box(
         HAKEN_X1 - haken_x0 + 2, 0.8, 0.8)
+# Kabeldurchgang: Fenster x haken_x0 … haken_nut_x1 (geschlossenes Ende bleibt durchgehend = Stütze beim Druck).
+# Profil in der x-z-Ebene: Oberkante waagerecht, Unterkante 45° fallend von der Stütze zur freien Kante.
+if DURCHGANG:
+    z_o = BODEN + DURCHGANG_OBEN
+    z_u1 = z_o - DURCHGANG_H                         # Unterkante am geschlossenen Ende
+    z_u0 = z_u1 - (haken_nut_x1 - (haken_x0 - 1))   # 45° bis 1 mm vor der freien Kante
+    fenster_xz = Polygon((haken_x0 - 1, z_o), (haken_x0 - 1, z_u0), (haken_nut_x1, z_u1), (haken_nut_x1, z_o),
+                         align=None)
+    tiefe = haken_y1 - haken_y0 + 2
+    # Polygon liegt in XY → um X drehen (XY → XZ), dann in y über die ganze Führung extrudieren
+    fenster = Pos(0, (haken_y0 + haken_y1) / 2 + tiefe / 2, 0) * Rot(90, 0, 0) * extrude(fenster_xz, tiefe)
+    haken -= fenster
 haube += haken
 
 # LEDs: Halter mit Schienen, Tasche, ggf. Lichtloch
