@@ -24,6 +24,10 @@ namespace radio
       const Msg *m = reinterpret_cast<const Msg *>(data);
       if (m->magic != MSG_MAGIC || m->version != MSG_VERSION)
         return;
+#ifdef SIM_LOSS_PCT
+      if (RANDOM_REG32 % 100 < SIM_LOSS_PCT)
+        return; // test build: drop packets like a bad radio link would
+#endif
       uint8_t next = (head + 1) % QUEUE_SIZE;
       if (next == tail)
         return; // full: drop, the state is re-sent anyway

@@ -23,10 +23,12 @@ namespace gateway
     {
       char player[MAX_PLAYER_NAME + 1];
       uint8_t seq;        // presses done
-      int8_t target;      // lit unit, -1 = none
+      int8_t target;      // lit (or about to light) unit, -1 = none
       int8_t lastTarget;
-      uint32_t litSince;  // gateway time the target was lit
-      uint32_t nextAt;    // when to light the next target
+      uint32_t litSince;  // gateway time the target lights (may be in the future)
+      uint32_t nextAt;    // no unit was free: when to try again
+      int8_t next;        // announced unit for the turn after target, -1 = none
+      uint16_t nextPause; // pause from the press on target until next lights
       uint16_t times[MAX_PRESSES];
       bool missed[MAX_PRESSES];
       uint8_t falsePresses; // solo only: in a duel nobody knows who pressed
@@ -110,9 +112,21 @@ namespace gateway
       m.gameId = gameId;
       for (uint8_t l = 0; l < LANES; l++)
       {
-        m.seq[l] = lanes[l].seq;
-        if (phase == PH_RUNNING && l < laneCount && lanes[l].target >= 0)
-          memcpy(m.target[l], units[lanes[l].target].mac, 6);
+        const Lane &lane = lanes[l];
+        m.seq[l] = lane.seq;
+        if (phase != PH_RUNNING || l >= laneCount)
+          continue;
+        if (lane.target >= 0)
+        {
+          memcpy(m.target[l], units[lane.target].mac, 6);
+          int32_t wait = (int32_t)(lane.litSince - now);
+          m.delay[l] = wait <= 0 ? 0 : wait > 0xFFFF ? 0xFFFF : wait;
+        }
+        if (lane.next >= 0)
+        {
+          memcpy(m.next[l], units[lane.next].mac, 6);
+          m.nextDelay[l] = lane.nextPause;
+        }
       }
       if (phase == PH_IDENTIFY && identifyTarget >= 0)
         memcpy(m.target[0], units[identifyTarget].mac, 6);
@@ -137,9 +151,10 @@ namespace gateway
       changed();
     }
 
-    // Next unit for a lane: never the other player's lit unit, and not the
-    // same unit twice in a row unless nothing else is free.
-    int8_t pickTarget(uint8_t l)
+    // Unit for a lane: never the other player's lit unit. Preferably not
+    // `avoid` (no unit twice in a row) and, when `spreadNext`, not the other
+    // player's announced next unit either; both only if something else is free.
+    int8_t pickUnit(uint8_t l, int8_t avoid, bool spreadNext)
     {
       uint32_t now = millis();
       int8_t candidates[MAX_UNITS];
@@ -153,31 +168,73 @@ namespace gateway
         if (online(i, now) && !otherLit)
           candidates[count++] = i;
       }
-      if (count > 1)
+      auto keepIf = [&](auto pred)
       {
         uint8_t kept = 0;
         for (uint8_t i = 0; i < count; i++)
-          if (candidates[i] != lanes[l].lastTarget)
+          if (pred(candidates[i]))
+            kept++;
+        if (kept == 0)
+          return; // soft rule: never leaves us without a unit
+        kept = 0;
+        for (uint8_t i = 0; i < count; i++)
+          if (pred(candidates[i]))
             candidates[kept++] = candidates[i];
         count = kept;
-      }
+      };
+      keepIf([&](int8_t c)
+             { return c != avoid; });
+      if (spreadNext)
+        keepIf([&](int8_t c)
+               {
+                 for (uint8_t o = 0; o < laneCount; o++)
+                   if (o != l && lanes[o].next == c)
+                     return false;
+                 return true; });
       return count ? candidates[random(count)] : -1;
     }
 
-    void lightNext(uint8_t l)
+    uint16_t randomPause()
+    {
+      return mode == MODE_DUEL ? DUEL_PAUSE_MS : random(PAUSE_MIN_MS, PAUSE_MAX_MS + 1);
+    }
+
+    // Give the lane its next target, lit `pause` ms from now. That is the unit
+    // announced in advance if it is still usable; it may already be lit,
+    // because it heard the press of the previous unit itself. Then announce
+    // the unit after it, so it can do the same.
+    void assignTarget(uint8_t l, uint32_t pause)
     {
       Lane &lane = lanes[l];
-      int8_t t = pickTarget(l);
+      uint32_t now = millis();
+      int8_t t = lane.next;
+      bool announced = t >= 0 && online(t, now);
+      for (uint8_t o = 0; o < laneCount && announced; o++)
+        if (o != l && lanes[o].target == t)
+          announced = false;
+      if (!announced)
+        t = pickUnit(l, lane.lastTarget, false);
+      lane.next = -1;
       if (t < 0)
-        return; // nothing free right now, try again next loop
+      {
+        lane.target = -1;
+        lane.nextAt = now + pause; // nothing free right now, try again then
+        return;
+      }
       lane.target = t;
       lane.lastTarget = t;
-      lane.litSince = millis();
+      lane.litSince = now + pause;
+      if (lane.seq + 1 < presses)
+      {
+        lane.next = pickUnit(l, t, true);
+        lane.nextPause = randomPause();
+      }
       if (mode == MODE_SOLO)
-        Serial.printf("Turn %u -> unit %d\n", lane.seq + 1, t + 1);
+        Serial.printf("Turn %u -> unit %d in %lu ms%s, next unit %d\n", lane.seq + 1, t + 1, (unsigned long)pause,
+                      announced ? "" : " (not announced)", lane.next + 1);
       else
-        Serial.printf("Lane %c turn %u -> unit %d\n", 'A' + l, lane.seq + 1, t + 1);
-      changed();
+        Serial.printf("Lane %c turn %u -> unit %d in %lu ms%s, next unit %d\n", 'A' + l, lane.seq + 1, t + 1,
+                      (unsigned long)pause, announced ? "" : " (not announced)", lane.next + 1);
     }
 
     uint32_t laneTotal(const Lane &lane)
@@ -251,12 +308,13 @@ namespace gateway
 
       Serial.printf("Game over: %s\n", json.c_str());
       for (auto &lane : lanes)
-        lane.target = -1;
+        lane.target = lane.next = -1;
       setPhase(PH_RESULT, RESULT_SHOW_MS);
       web::broadcast(String("{\"type\":\"result\",\"result\":") + json + "}");
     }
 
-    void recordTurn(uint8_t l, uint32_t ms, bool miss)
+    // ageMs: how long ago the unit was pressed (its press may have needed resends)
+    void recordTurn(uint8_t l, uint32_t ms, bool miss, uint32_t ageMs)
     {
       Lane &lane = lanes[l];
       uint32_t now = millis();
@@ -272,7 +330,14 @@ namespace gateway
           Serial.printf("Lane %c finished after %lu ms\n", 'A' + l, (unsigned long)lane.finishMs);
       }
       else
-        lane.nextAt = now + (mode == MODE_DUEL ? DUEL_PAUSE_MS : random(PAUSE_MIN_MS, PAUSE_MAX_MS + 1));
+      {
+        // the pause counts from the press, not from when we heard it
+        uint32_t pause = lane.next >= 0 ? lane.nextPause : randomPause();
+        Serial.printf("Pause %lu ms, press %lu ms ago\n", (unsigned long)pause, (unsigned long)ageMs);
+        assignTarget(l, pause > ageMs ? pause - ageMs : 0);
+      }
+      if (lane.done)
+        lane.next = -1;
 
       bool allDone = true;
       for (uint8_t i = 0; i < laneCount; i++)
@@ -320,7 +385,7 @@ namespace gateway
     memset(units, 0, sizeof(units));
     memset(lanes, 0, sizeof(lanes));
     for (auto &lane : lanes)
-      lane.target = lane.lastTarget = -1;
+      lane.target = lane.lastTarget = lane.next = -1;
     units[0].used = true;
     memcpy(units[0].mac, radio::selfMac(), 6);
     sendState();
@@ -362,7 +427,7 @@ namespace gateway
       if (m.lane < laneCount && lanes[m.lane].target == u && m.seq[0] == lanes[m.lane].seq)
       {
         bool miss = m.value >= timeoutMs;
-        recordTurn(m.lane, miss ? timeoutMs : m.value, miss);
+        recordTurn(m.lane, miss ? timeoutMs : m.value, miss, m.age);
       }
       break;
     case MSG_FALSE_PRESS:
@@ -393,7 +458,12 @@ namespace gateway
       {
         raceStart = now;
         for (uint8_t l = 0; l < laneCount; l++)
-          lanes[l].nextAt = now + (mode == MODE_SOLO ? random(PAUSE_MIN_MS, PAUSE_MAX_MS + 1) : 0);
+          assignTarget(l, mode == MODE_SOLO ? randomPause() : 0);
+        // duel: red chose its next unit before blue had a target, so check again
+        for (uint8_t l = 0; l + 1 < laneCount; l++)
+          for (uint8_t o = l + 1; o < laneCount; o++)
+            if (lanes[l].next >= 0 && lanes[l].next == lanes[o].target)
+              lanes[l].next = pickUnit(l, lanes[l].target, true);
         setPhase(PH_RUNNING, 0);
       }
       break;
@@ -406,13 +476,17 @@ namespace gateway
         if (lane.target < 0)
         {
           if ((int32_t)(now - lane.nextAt) >= 0)
-            lightNext(l);
+          {
+            assignTarget(l, 0);
+            if (lane.target >= 0)
+              changed();
+          }
         }
         // the unit measures itself; this is only the fallback if it never answers
-        else if (now - lane.litSince > (uint32_t)timeoutMs + 300)
+        else if ((int32_t)(now - lane.litSince) > (int32_t)timeoutMs + 300)
         {
           Serial.printf("Lane %c turn %u timed out\n", 'A' + l, lane.seq + 1);
-          recordTurn(l, timeoutMs, true);
+          recordTurn(l, timeoutMs, true, 0);
         }
       }
       break;
@@ -461,7 +535,7 @@ namespace gateway
     memset(lanes, 0, sizeof(lanes));
     for (uint8_t l = 0; l < LANES; l++)
     {
-      lanes[l].target = lanes[l].lastTarget = -1;
+      lanes[l].target = lanes[l].lastTarget = lanes[l].next = -1;
       const char *name = l < laneCount ? req.players[l] : nullptr;
       strncpy(lanes[l].player, name && *name ? name : "?", MAX_PLAYER_NAME);
     }
@@ -483,7 +557,7 @@ namespace gateway
       return;
     Serial.println("Game aborted");
     for (auto &lane : lanes)
-      lane.target = -1;
+      lane.target = lane.next = -1;
     identifyTarget = -1;
     setPhase(PH_IDLE, 0);
   }

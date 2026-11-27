@@ -162,10 +162,17 @@ Zum Prüfen frisch gelöteter Buttons gibt es einen Hardwaretest, siehe [Aufbau]
 
 ## Technik
 - Alle Geräte haben dieselbe Firmware; die Zentrale wird beim Booten gewählt (`main.cpp`).
-- Funk: ESP-NOW-Broadcast auf Kanal 1 (`radio.cpp`, Format in `protocol.h`, Version 3: zwei „Lanes“ für
-  das Duell und der Testmodus – Geräte mit älterer Firmware werden ignoriert, also immer **alle** Buttons flashen).
+- Funk: ESP-NOW-Broadcast auf Kanal 1 (`radio.cpp`, Format in `protocol.h`, Version 4: zwei „Lanes“ für
+  das Duell, Testmodus und vorab angekündigter nächster Button – Geräte mit älterer Firmware werden ignoriert,
+  also immer **alle** Buttons flashen).
   Die Zentrale sendet den Spielzustand alle 100 ms und bei jeder Änderung; ein Button misst seine Reaktionszeit
   selbst (LED an → Druck), Funklatenz zählt also nicht.
+- Der **nächste Button steht schon vorher fest**: Der Spielzustand nennt außer dem leuchtenden Button auch den
+  nächsten und dessen Pause. Der nächste Button hört den Druck des Vorgängers direkt mit und geht nach der Pause
+  selbst an, ohne auf die Zentrale zu warten; die Pause zählt ab dem Druck (Wiederholungen tragen ihr Alter mit).
+  Bei schlechtem Funk kommt der nächste Button so trotzdem pünktlich (gemessen mit 70 % simuliertem Paketverlust:
+  im Mittel 39 statt 222 ms Verzögerung, höchstens 156 statt 1135 ms). Testbuild mit Paketverlust:
+  `PLATFORMIO_BUILD_FLAGS=-DSIM_LOSS_PCT=70 pio run -t upload`.
 - Zentrale: Spielleitung für Einzel und Duell (`gateway.cpp`), eigenes WLAN + Webseite + WebSocket `/ws` auf
   Port 80 (`web.cpp`, `webpage.h`). Wettkämpfe/Ranglisten kennt nur die App.
   Der Webserver ist **asynchron** (ESPAsyncWebServer): ein langsames oder schlafendes Handy darf die Spielschleife

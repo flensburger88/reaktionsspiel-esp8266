@@ -8,6 +8,7 @@ namespace unit
 
   void begin(bool isGateway, SendFn send);
   void onState(const Msg &state); // game state from the gateway (radio or local)
+  void onPeerPressed(const Msg &m); // another unit's MSG_PRESSED: light ourselves if we are next
   void update();                  // button, resends, hello, gateway watchdog
   uint32_t msSinceState();        // how long the gateway has been silent
   void simulatePress();           // serial "press" command, for testing without a button

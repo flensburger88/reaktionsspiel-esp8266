@@ -62,6 +62,8 @@ void handle(const Msg &m)
   case ROLE_UNIT:
     if (m.type == MSG_STATE)
       unit::onState(m);
+    else if (m.type == MSG_PRESSED)
+      unit::onPeerPressed(m); // the next unit does not wait for the gateway
     break;
   case ROLE_GATEWAY:
     if (m.type == MSG_STATE)
