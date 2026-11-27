@@ -10,7 +10,7 @@
   let bot = P.get('bot') === '1';
 
   // values from src/config.h
-  const COUNTDOWN_MS = 3000, PAUSE_MIN_MS = 300, PAUSE_MAX_MS = 1200, DUEL_PAUSE_MS = 150;
+  const COUNTDOWN_MS = 3000, PAUSE_MIN_MS = 0, PAUSE_MAX_MS = 0, DUEL_PAUSE_MS = 150;
   const RESULT_SHOW_MS = 4000, IDENTIFY_MS = 2000, PENALTY_MS = 500, MAX_RESULTS = 10;
   const MIN_TIMEOUT_MS = 1000, MAX_TIMEOUT_MS = 30000, MAX_PRESSES = 50;
 

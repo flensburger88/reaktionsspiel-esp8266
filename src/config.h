@@ -24,8 +24,8 @@
 #define PRESS_RESEND_MAX_MS 3000
 #define DEBOUNCE_MS 30
 #define COUNTDOWN_MS 3000
-#define PAUSE_MIN_MS 300
-#define PAUSE_MAX_MS 1200
+#define PAUSE_MIN_MS 0 // solo: random pause before the next button (0/0 = lights right after the hit)
+#define PAUSE_MAX_MS 0
 #define DUEL_PAUSE_MS 150 // duel: next button right after a hit, just long enough to see the green flash
 #define RESULT_SHOW_MS 4000
 #define IDENTIFY_MS 2000

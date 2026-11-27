@@ -173,6 +173,9 @@ Zum Prüfen frisch gelöteter Buttons gibt es einen Hardwaretest, siehe [Aufbau]
   Bei schlechtem Funk kommt der nächste Button so trotzdem pünktlich (gemessen mit 70 % simuliertem Paketverlust:
   im Mittel 39 statt 222 ms Verzögerung, höchstens 156 statt 1135 ms). Testbuild mit Paketverlust:
   `PLATFORMIO_BUILD_FLAGS=-DSIM_LOSS_PCT=70 pio run -t upload`.
+- Pause vor dem nächsten Button (`config.h`): im Einzel **keine** (`PAUSE_MIN_MS`/`PAUSE_MAX_MS` = 0, der nächste
+  Button geht direkt nach dem Treffer an), im Duell 150 ms (`DUEL_PAUSE_MS`). Wer eine zufällige Pause gegen
+  Vorausahnen möchte, setzt z. B. 300/1200. Die Pause zählt nie zur Reaktionszeit.
 - Zentrale: Spielleitung für Einzel und Duell (`gateway.cpp`), eigenes WLAN + Webseite + WebSocket `/ws` auf
   Port 80 (`web.cpp`, `webpage.h`). Wettkämpfe/Ranglisten kennt nur die App.
   Der Webserver ist **asynchron** (ESPAsyncWebServer): ein langsames oder schlafendes Handy darf die Spielschleife
